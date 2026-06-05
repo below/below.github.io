@@ -1,0 +1,50 @@
+name: Update
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-date:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Update date
+        id: update
+        shell: bash
+        env:
+          TZ: Europe/Berlin
+        run: |
+          set -euo pipefail
+
+          old_date="$(tr -d '\r\n' < test.html)"
+          new_date="$(date +%F)"
+
+          echo "old_date=${old_date}" >> "$GITHUB_OUTPUT"
+          echo "new_date=${new_date}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${old_date}" == "${new_date}" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf '%s\n' "${new_date}" > test.html
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.update.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test.html
+          git commit -m "Update date from ${{ steps.update.outputs.old_date }} to ${{ steps.update.outputs.new_date }}"
+          git push
+
